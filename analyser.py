@@ -3,7 +3,7 @@
 Example to sniff all HTTP traffic on eth0 interface:
     sudo ./sniff.py eth0 "port 80"
 """
-
+import psycopg2
 import sys
 import pcap
 import string
@@ -11,6 +11,7 @@ import time
 import socket
 import struct
 from OSC import OSCClient, OSCMessage
+
 
 protocols={socket.IPPROTO_TCP:'tcp',
             socket.IPPROTO_UDP:'udp',
@@ -36,7 +37,8 @@ def decode_ip_packet(s):
         d['options']=None
     d['data']=s[4*d['header_len']:]
     message = OSCMessage("/chuck")
-    message.append( (1/float(d['total_len'])))
+    message.append( (10/float(d['total_len'])))
+    message.append (abs(float(d['ttl'])-30)/10)
     client.send(message)
     return d
 
@@ -46,7 +48,7 @@ def dumphex(s):
     for i in xrange(0,len(bytes)/16):
         print '        %s' % string.join(bytes[i*16:(i+1)*16],' ')
     print '        %s' % string.join(bytes[(i+1)*16:],' ')
-        
+
 
 def print_packet(pktlen, data, timestamp):
     if not data:
@@ -66,10 +68,10 @@ def print_packet(pktlen, data, timestamp):
         print '    header checksum: %d' % decoded['checksum']
         print '    data:'
         dumphex(decoded['data'])
- 
+
 
 if __name__=='__main__':
-    
+
     if len(sys.argv) < 3:
         print 'usage: sniff.py <interface> <expr>'
         sys.exit(0)
@@ -82,8 +84,13 @@ if __name__=='__main__':
     #p.dump_open('dumpfile')
     p.setfilter(string.join(sys.argv[2:],' '), 0, 0)
     client = OSCClient()
-    client.connect( ("172.30.7.66", 6449) )
+    client.connect( ("localhost", 6449) )
+    # Connect to an existing database
+    conn = psycopg2.connect("dbname=iplocation user=postgres password='laffi14'")
 
+    # Open a cursor to perform database operations
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM geoloc;")
     # try-except block to catch keyboard interrupt.    Failure to shut
     # down cleanly can result in the interface not being taken out of promisc.
     # mode
@@ -99,13 +106,13 @@ if __name__=='__main__':
         #    p.loop(1, print_packet)
 
         # as is the next() method
-        # p.next() returns a (pktlen, data, timestamp) tuple 
+        # p.next() returns a (pktlen, data, timestamp) tuple
         #    apply(print_packet,p.next())
     except KeyboardInterrupt:
         print '%s' % sys.exc_type
         print 'shutting down'
         print '%d packets received, %d packets dropped, %d packets dropped by interface' % p.stats()
-    
+
 
 
 # vim:set ts=4 sw=4 et:
