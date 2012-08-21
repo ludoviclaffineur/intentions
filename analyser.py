@@ -16,32 +16,63 @@ from OSC import OSCClient, OSCMessage
 protocols={socket.IPPROTO_TCP:'tcp',
             socket.IPPROTO_UDP:'udp',
             socket.IPPROTO_ICMP:'icmp'}
+rows = []
 
-def decode_ip_packet(s):
-    d={}
-    d['version']=(ord(s[0]) & 0xf0) >> 4
-    d['header_len']=ord(s[0]) & 0x0f
-    d['tos']=ord(s[1])
-    d['total_len']=socket.ntohs(struct.unpack('H',s[2:4])[0])
-    d['id']=socket.ntohs(struct.unpack('H',s[4:6])[0])
-    d['flags']=(ord(s[6]) & 0xe0) >> 5
-    d['fragment_offset']=socket.ntohs(struct.unpack('H',s[6:8])[0] & 0x1f)
-    d['ttl']=ord(s[8])
-    d['protocol']=ord(s[9])
-    d['checksum']=socket.ntohs(struct.unpack('H',s[10:12])[0])
-    d['source_address']=pcap.ntoa(struct.unpack('i',s[12:16])[0])
-    d['destination_address']=pcap.ntoa(struct.unpack('i',s[16:20])[0])
-    if d['header_len']>5:
-        d['options']=s[20:4*(d['header_len']-5)]
-    else:
-        d['options']=None
-    d['data']=s[4*d['header_len']:]
-    message = OSCMessage("/chuck")
-    message.append( (10/float(d['total_len'])))
-    message.append (abs(float(d['ttl'])-30)/10)
-    client.send(message)
-    return d
+def decode_ip_packet(pktlen, data, timestamp):
+    if not data:
+        return
+    else :
+        s = data[14:]
+        d = {}
+        d['version']=(ord(s[0]) & 0xf0) >> 4
+        d['header_len']=ord(s[0]) & 0x0f
+        d['tos']=ord(s[1])
+        d['total_len']=socket.ntohs(struct.unpack('H',s[2:4])[0])
+        d['id']=socket.ntohs(struct.unpack('H',s[4:6])[0])
+        d['flags']=(ord(s[6]) & 0xe0) >> 5
+        d['fragment_offset']=socket.ntohs(struct.unpack('H',s[6:8])[0] & 0x1f)
+        d['ttl']=ord(s[8])
+        d['protocol']=ord(s[9])
+        d['checksum']=socket.ntohs(struct.unpack('H',s[10:12])[0])
+        d['source_address']=pcap.ntoa(struct.unpack('i',s[12:16])[0])
+        d['destination_address']=pcap.ntoa(struct.unpack('i',s[16:20])[0])
+        if d['header_len']>5:
+            d['options']=s[20:4*(d['header_len']-5)]
+        else:
+            d['options'] = None
+            d['data'] = s[4*d['header_len']:]
+        message = OSCMessage("/chuck")
+        message.append( (10/float(d['total_len'])))
+        message.append (abs(float(d['ttl'])-10)/40)
+        message.append (find_from_num_ip(ip_to_numerical_address( s[16:20] )))
+        client.send(message)
+        return d
 
+def ip_to_numerical_address(ip_address):
+    bytes = map(lambda x: '%.2x' % x, map(ord, ip_address))
+    num_ip = 16777216*hex2dec(bytes[0]) + 65536*hex2dec(bytes[1]) + 256*hex2dec(bytes[2]) + hex2dec(bytes[3])
+    return num_ip
+
+def find_from_num_ip(num_address):
+    max_value = len(rows)
+    id_temp = max_value/2
+    min_value = 0
+    #k=0
+    while  1 :
+        if num_address < rows[id_temp][0]:
+            max_value = id_temp
+            id_temp = (id_temp + min_value)/2
+            #k= k + 1
+        elif num_address > rows[id_temp+1][0]:
+            min_value = id_temp
+            id_temp = (id_temp + max_value)/2
+            #k = k + 1
+        else:
+            #print k
+            return rows[id_temp][1]
+
+def hex2dec(s):
+    return int(s, 16)
 
 def dumphex(s):
     bytes = map(lambda x: '%.2x' % x, map(ord, s))
@@ -55,7 +86,7 @@ def print_packet(pktlen, data, timestamp):
         return
 
     if data[12:14]=='\x08\x00':
-        decoded=decode_ip_packet(data[14:])
+        decoded = decode_ip_packet(pktlen, data, timestamp)
         print '\n%s.%f %s > %s' % (time.strftime('%H:%M',
                                 time.localtime(timestamp)),
                                 timestamp % 60,
@@ -90,14 +121,17 @@ if __name__=='__main__':
 
     # Open a cursor to perform database operations
     cur = conn.cursor()
-    cur.execute("SELECT * FROM geoloc;")
+    cur.execute("SELECT begin_num, parameter FROM ip_param;")
+    rows = cur.fetchall()
+    this_time = time.time()
+    ip_num_test = 988999999
     # try-except block to catch keyboard interrupt.    Failure to shut
     # down cleanly can result in the interface not being taken out of promisc.
     # mode
     #p.setnonblock(1)
     try:
         while 1:
-            p.dispatch(1, print_packet)
+            p.dispatch(1, decode_ip_packet)
         # specify 'None' to dump to dumpfile, assuming you have called
         # the dump_open method
         #    p.dispatch(0, None)

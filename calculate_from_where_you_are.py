@@ -14,6 +14,10 @@ if __name__=='__main__':
 
     # Open a cursor to perform database operations
     cur = conn.cursor()
+    cur.execute("DROP TABLE IF EXISTS ip_param, country_param ")
+    conn.commit()
+    cur.execute("CREATE TABLE country_param(name_country character varying(255),parameter real);")
+    conn.commit()
     cur.execute("SELECT DISTINCT name_country FROM geoloc;")
     rows = cur.fetchall()
     distance_maxi = 20000.0
@@ -26,3 +30,5 @@ if __name__=='__main__':
             cur.execute("INSERT INTO country_param(name_country, parameter)  VALUES (%s, %s);", (row, rapport))
             conn.commit()
             time.sleep(1)
+    cur.execute("CREATE TABLE ip_param AS SELECT begin_num ,parameter FROM geoloc INNER JOIN country_param ON country_param.name_country = geoloc.name_country ")
+    conn.commit()

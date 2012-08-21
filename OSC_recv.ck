@@ -1,10 +1,14 @@
-fun void sweepUp(float initFreq, float timeLeft) {   // function definition
-    SndBuf buf => Gain g => dac;   // alloc UG (not a good idea)
+fun void sweepUp(float initFreq, float timeLeft, float reverb) {   // function definition
+    SndBuf buf => Gain g => Dyno limiter => dac;   // alloc UG (not a good idea)
+    limiter.limit();
+    0.5 => limiter.thresh;
+    10::ms => limiter.attackTime;
+    5::second => limiter.releaseTime;
     g => Gain feedback => DelayL delay => g;
-    0.5 => feedback.gain;
+    reverb => feedback.gain;
     "/Users/ludoviclaffineur/intentions/snare.wav" => buf.read;
     .5::second => delay.max => delay.delay;
-    .3 => delay.gain;
+    reverb => delay.gain;
     0 => buf.play; 
     initFreq => buf.play;
     //s =< dac;      // unchuck (for GC (later))
@@ -30,7 +34,7 @@ OscRecv recv;
 recv.listen();
 
 // create an address in the receiver, store in new variable
-recv.event( "/chuck, f, f" ) @=> OscEvent oe;
+recv.event( "/chuck, f, f, f" ) @=> OscEvent oe;
 
 // infinite event loop
 while ( true )
@@ -43,12 +47,13 @@ while ( true )
     { 
         // getFloat fetches the expected float (as indicated by "f")
         //oe.getFloat() => buf.play;
-        float timeLeft, frequency;
+        float timeLeft, frequency, reverb;
         oe.getFloat() => timeLeft;
         oe.getFloat() => frequency;
-        spork ~ sweepUp(timeLeft, frequency);
+        oe.getFloat() => reverb;
+        spork ~ sweepUp(timeLeft, frequency, reverb);
         // print
-        <<< "got (via OSC):", timeLeft, frequency>>>;
+        <<< "got (via OSC):", timeLeft, frequency , reverb>>>;
         // set play pointer to beginning
         //0 => buf.pos;
     }
