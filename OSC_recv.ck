@@ -1,7 +1,8 @@
 fun void sweepUp(float initFreq, float timeLeft, float reverb) {   // function definition
     SndBuf buf => Gain g => Dyno limiter => dac;   // alloc UG (not a good idea)
     limiter.limit();
-    0.5 => limiter.thresh;
+    0.05 =>buf.gain;
+    0.2 => limiter.thresh;
     10::ms => limiter.attackTime;
     5::second => limiter.releaseTime;
     g => Gain feedback => DelayL delay => g;
