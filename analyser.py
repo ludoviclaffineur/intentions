@@ -54,31 +54,31 @@ def decode_ip_packet(pktlen, data, timestamp):
     else :
         s = data[14:]
         d = {}
-
-        d['version']=(ord(s[0]) & 0xf0) >> 4
-        d['header_len']=ord(s[0]) & 0x0f
-        d['tos']=ord(s[1])
-        d['total_len']=socket.ntohs(struct.unpack('H',s[2:4])[0])
-        d['id']=socket.ntohs(struct.unpack('H',s[4:6])[0])
-        d['flags']=(ord(s[6]) & 0xe0) >> 5
-        d['fragment_offset']=socket.ntohs(struct.unpack('H',s[6:8])[0] & 0x1f)
-        d['ttl']=ord(s[8])
-        d['protocol']=ord(s[9])
-        d['checksum']=socket.ntohs(struct.unpack('H',s[10:12])[0])
-        d['source_address']=pcap.ntoa(struct.unpack('i',s[12:16])[0])
-        d['destination_address']=pcap.ntoa(struct.unpack('i',s[16:20])[0])
-        if d['header_len']>5:
-            d['options']=s[20:4*(d['header_len']-5)]
-        else:
-            d['options'] = None
-            d['data'] = s[4*d['header_len']:]
-            sport =  map(lambda x: '%.2x' % x, map(ord, d['data'][0:2]))
-            dport = map(lambda x: '%.2x' % x, map(ord, d['data'][2:4]))
-            d['sport'] = hex2dec(sport[0])*256 + hex2dec(sport[1])
-            d['dport'] =  hex2dec(dport[0])*256 + hex2dec(dport[1])
-            decode_protocole(d)
-            if d['total_len']<300 and d['total_len']>0:
-                count = count +1
+        if len(s) > 6:
+            d['version']=(ord(s[0]) & 0xf0) >> 4
+            d['header_len']=ord(s[0]) & 0x0f
+            d['tos']=ord(s[1])
+            d['total_len']=socket.ntohs(struct.unpack('H',s[2:4])[0])
+            d['id']=socket.ntohs(struct.unpack('H',s[4:6])[0])
+            d['flags']=(ord(s[6]) & 0xe0) >> 5
+            d['fragment_offset']=socket.ntohs(struct.unpack('H',s[6:8])[0] & 0x1f)
+            d['ttl']=ord(s[8])
+            d['protocol']=ord(s[9])
+            d['checksum']=socket.ntohs(struct.unpack('H',s[10:12])[0])
+            d['source_address']=pcap.ntoa(struct.unpack('i',s[12:16])[0])
+            d['destination_address']=pcap.ntoa(struct.unpack('i',s[16:20])[0])
+            if d['header_len']>5:
+                d['options']=s[20:4*(d['header_len']-5)]
+            else:
+                d['options'] = None
+                d['data'] = s[4*d['header_len']:]
+                sport =  map(lambda x: '%.2x' % x, map(ord, d['data'][0:2]))
+                dport = map(lambda x: '%.2x' % x, map(ord, d['data'][2:4]))
+                d['sport'] = hex2dec(sport[0])*256 + hex2dec(sport[1])
+                d['dport'] =  hex2dec(dport[0])*256 + hex2dec(dport[1])
+                decode_protocole(d)
+                if d['total_len']<300 and d['total_len']>0:
+                    count = count +1
 
         return d
 
@@ -192,7 +192,7 @@ if __name__=='__main__':
     #p.dump_open('dumpfile')
     #p.setfilter(string.join(sys.argv[2:],' '), 0, 0)
     client = OSCClient()
-    client.connect( ("172.30.7.66", 6449) )
+    client.connect( ("localhost", 6449) )
     # Connect to an existing database
     conn = psycopg2.connect("dbname=iplocation user=postgres password='laffi14'")
     t_send_count = threading.Thread(None, send_count_to_chuck, None, {})
