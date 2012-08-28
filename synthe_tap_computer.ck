@@ -31,6 +31,29 @@ recv.listen();
 // print out device that was opened
 <<< "MIDI device:", min.num(), " -> ", min.name() >>>;
 
+
+fun void dhcp_connection()
+{ 
+    
+    recv.event( "/connection" ) @=> OscEvent oe;
+    
+    while (true){
+        oe => now;                    // wait for message to come in
+        while( oe.nextMsg() )  { 
+            spork ~ play_connection();
+        }
+    }
+}
+
+fun void play_connection()
+{
+    SndBuf buf3 => dac;
+    0.1 => buf3.gain;
+    "/Users/ludoviclaffineur/intentions/dhcp_connection.aif" => buf3.read;
+    10000::ms => now;
+}
+
+
 fun void grain(float duration , int position, float pitch, int randompos, float randpitch)
 { 
     recv.event( "/chuck, f, f, f" ) @=> OscEvent oe;
@@ -110,7 +133,8 @@ fun void set_count_listener(){
 0 => int rand_position;
 0.0 => float rand_pitch;
 spork ~ grain(grain_duration,position,base_pitch,rand_position,rand_pitch);
-spork ~ set_parameters_listener();
+//spork ~ set_parameters_listener();
+spork ~ dhcp_connection();
 spork ~ set_count_listener();
 // time loop
 while( true )

@@ -43,7 +43,6 @@ def send_count_to_chuck():
 def send_count_via_osc_to_chuck(count):
     message = OSCMessage("/count")
     message.append(count)
-
     client.send(message)
 
 def decode_ip_packet(pktlen, data, timestamp):
@@ -85,6 +84,17 @@ def decode_ip_packet(pktlen, data, timestamp):
 def decode_protocole(d):
     if is_dns_request(d):
         speak_daniel_speak(d)
+    elif is_dhcp_request(d):
+        launch_connection_sound()
+
+def is_dhcp_request(d):
+    return d['protocol'] == 17 and d['dport'] == 68
+
+
+def launch_connection_sound():
+    message = OSCMessage("/connection")
+    client.send(message)
+
 
 def is_dns_request(d):
     return d['protocol'] == 17 and d['dport'] == 53
@@ -94,7 +104,7 @@ def speak_daniel_speak(d):
     m = re.findall('\w+', name_site)
     if site_is_unknown(m[len(m)-2]):
         add_site_to_known_sites(m[len(m)-2])
-        command_final = "say -v Daniel " +  m[len(m)-2] + " &"
+        command_final = "say " +  m[len(m)-2] + " &"
         print (command_final)
         os.system(command_final)
 
